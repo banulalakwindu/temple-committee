@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="si">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; img-src 'self' file: data:; style-src 'unsafe-inline'"
+    />
+    <title>Temple Community</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #1b4d3e;
+        font-family: "Segoe UI", "Noto Sans Sinhala", sans-serif;
+      }
+      .wrap {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        background:
+          radial-gradient(circle at 50% 30%, rgba(196, 137, 42, 0.25), transparent 45%),
+          linear-gradient(165deg, #1b4d3e, #14382e 60%, #0f2a22);
+      }
+      img {
+        width: min(86%, 640px);
+        height: auto;
+        object-fit: contain;
+        border-radius: 14px;
+        filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.35));
+      }
+      .bar {
+        width: 160px;
+        height: 4px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.15);
+        overflow: hidden;
+        margin-top: 0.35rem;
+      }
+      .bar > span {
+        display: block;
+        height: 100%;
+        width: 40%;
+        border-radius: inherit;
+        background: #c4892a;
+        animation: slide 1.1s ease-in-out infinite;
+      }
+      @keyframes slide {
+        0% {
+          transform: translateX(-120%);
+        }
+        100% {
+          transform: translateX(280%);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <img src="./splash.png" alt="දායක සභාව — Temple Committee" />
+      <div class="bar"><span></span></div>
+    </div>
+  </body>
+</html>
