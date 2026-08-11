@@ -26,7 +26,7 @@ try {
   console.log("Cleaned release staging folders.");
 } catch (err) {
   console.error(
-    "Could not clean release/. Close Temple Community / File Explorer windows using that folder, then retry.",
+    "Could not clean release/. Close Temple Committee / File Explorer windows using that folder, then retry.",
   );
   console.error(String(err));
   process.exit(1);

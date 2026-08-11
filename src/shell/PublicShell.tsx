@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { ActionLink, IconButton } from "@/components/ActionLink";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { Icons } from "@/components/Icons";
@@ -14,6 +14,9 @@ export function PublicShell() {
   const { adminUnlocked } = useApp();
   const [unlockOpen, setUnlockOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const isHome =
+    location.pathname === "/public" || location.pathname === "/public/";
 
   return (
     <div className="public-shell app-root">
@@ -22,11 +25,11 @@ export function PublicShell() {
           <img
             className="brand-logo-wide"
             src={logoWide}
-            alt="දායක සභාව — Temple Committee"
+            alt={t("appName")}
           />
         </div>
         <div className="header-actions">
-          <GlobalSearch />
+          <GlobalSearch autoFocus={isHome} />
           <LangToggle />
           {adminUnlocked ? (
             <ActionLink to="/admin" icon={Icons.lock()} variant="primary">

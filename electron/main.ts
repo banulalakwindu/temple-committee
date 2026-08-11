@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, Menu } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,11 +7,29 @@ import { openDatabase, closeDatabase } from "./db/connection.js";
 import { runMigrations } from "./db/migrate.js";
 import { maybeAutoBackup, backupDatabase } from "./services/backup.js";
 import { registerIpc } from "./ipc/register.js";
+import { loadWindowState, trackWindowState } from "./windowState.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 let mainWindow: BrowserWindow | null = null;
 let splashWindow: BrowserWindow | null = null;
+
+/** One desk PC = one app window. Second launch focuses the existing window. */
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    focusMainWindow();
+  });
+}
+
+function focusMainWindow(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
 
 function resolvePreload(): string {
   const candidates = [
@@ -84,15 +102,28 @@ function closeSplash(): void {
 }
 
 function createWindow(): void {
+  const state = loadWindowState();
+
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    width: state.width,
+    height: state.height,
+    ...(typeof state.x === "number" && typeof state.y === "number"
+      ? { x: state.x, y: state.y }
+      : {}),
     minWidth: 960,
     minHeight: 640,
-    title: "Temple Community",
-    backgroundColor: "#F4F1E8",
+    title: "Temple Committee",
+    backgroundColor: "#1B4D3E",
     show: false,
     icon: resolveAppIcon(),
+    // WhatsApp-style chrome: content paints under a brand title bar;
+    // Windows keeps native min/max/close via Window Controls Overlay.
+    titleBarStyle: "hidden",
+    titleBarOverlay: {
+      color: "#1B4D3E",
+      symbolColor: "#F4FAF7",
+      height: 36,
+    },
     webPreferences: {
       preload: resolvePreload(),
       contextIsolation: true,
@@ -100,6 +131,12 @@ function createWindow(): void {
       sandbox: false,
     },
   });
+
+  if (state.isMaximized) {
+    mainWindow.maximize();
+  }
+
+  trackWindowState(mainWindow);
 
   const showMain = (): void => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -143,25 +180,30 @@ function initDatabase(): void {
   maybeAutoBackup();
 }
 
-app.whenReady().then(() => {
-  showSplash();
-  initDatabase();
-  registerIpc();
-  createWindow();
+if (gotSingleInstanceLock) {
+  app.whenReady().then(() => {
+    // Kiosk-style desk app — no File/Edit/View menu bar
+    Menu.setApplicationMenu(null);
+    showSplash();
+    initDatabase();
+    registerIpc();
+    createWindow();
 
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+      else focusMainWindow();
+    });
   });
-});
 
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
+  app.on("window-all-closed", () => {
+    if (process.platform !== "darwin") {
+      closeDatabase();
+      app.quit();
+    }
+  });
+
+  app.on("before-quit", () => {
+    closeSplash();
     closeDatabase();
-    app.quit();
-  }
-});
-
-app.on("before-quit", () => {
-  closeSplash();
-  closeDatabase();
-});
+  });
+}

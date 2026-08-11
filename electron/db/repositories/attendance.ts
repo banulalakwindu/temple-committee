@@ -5,11 +5,10 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
-export function listEvents(activeOnly = false): NamedType[] {
-  const sql = activeOnly
-    ? "SELECT * FROM attendance_events WHERE is_active = 1 ORDER BY sort_order, id"
-    : "SELECT * FROM attendance_events ORDER BY sort_order, id";
-  return getDb().prepare(sql).all() as NamedType[];
+export function listEvents(): NamedType[] {
+  return getDb()
+    .prepare("SELECT * FROM attendance_events ORDER BY sort_order, id")
+    .all() as NamedType[];
 }
 
 export function upsertEvent(
@@ -18,29 +17,18 @@ export function upsertEvent(
   if (input.id) {
     getDb()
       .prepare(
-        `UPDATE attendance_events SET name_si=?, name_en=?, is_active=?, sort_order=? WHERE id=?`,
+        `UPDATE attendance_events SET name_si=?, name_en=?, sort_order=? WHERE id=?`,
       )
-      .run(
-        input.name_si,
-        input.name_en,
-        input.is_active ?? 1,
-        input.sort_order ?? 0,
-        input.id,
-      );
+      .run(input.name_si, input.name_en, input.sort_order ?? 0, input.id);
     return getDb()
       .prepare("SELECT * FROM attendance_events WHERE id = ?")
       .get(input.id) as NamedType;
   }
   const r = getDb()
     .prepare(
-      `INSERT INTO attendance_events (name_si, name_en, is_active, sort_order) VALUES (?, ?, ?, ?)`,
+      `INSERT INTO attendance_events (name_si, name_en, sort_order) VALUES (?, ?, ?)`,
     )
-    .run(
-      input.name_si,
-      input.name_en,
-      input.is_active ?? 1,
-      input.sort_order ?? 0,
-    );
+    .run(input.name_si, input.name_en, input.sort_order ?? 0);
   return getDb()
     .prepare("SELECT * FROM attendance_events WHERE id = ?")
     .get(Number(r.lastInsertRowid)) as NamedType;
@@ -53,6 +41,7 @@ export type AttendanceFilters = {
   dateTo?: string;
   eventId?: number | null;
   houseId?: number | null;
+  personId?: number | null;
   village?: string;
 };
 
@@ -84,6 +73,10 @@ export function listAttendance(
     where.push("a.house_id = ?");
     params.push(filters.houseId);
   }
+  if (filters.personId) {
+    where.push("a.person_id = ?");
+    params.push(filters.personId);
+  }
   if (filters.village?.trim()) {
     where.push("(h.village_si LIKE ? OR h.village_en LIKE ?)");
     const like = `%${filters.village.trim()}%`;
@@ -96,6 +89,7 @@ export function listAttendance(
         p.full_name_si AS person_name_si,
         p.full_name_en AS person_name_en,
         h.name_si AS house_name_si,
+        h.name_en AS house_name_en,
         e.name_si AS event_name_si,
         e.name_en AS event_name_en
        FROM attendance a
@@ -126,15 +120,16 @@ export function markAttendance(payload: {
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
   );
   const getPersonHouse = db.prepare(
-    "SELECT current_house_id FROM people WHERE id = ?",
+    "SELECT current_house_id, is_archived FROM people WHERE id = ?",
   );
   let count = 0;
   db.exec("BEGIN");
   try {
     for (const personId of payload.personIds) {
       const row = getPersonHouse.get(personId) as
-        | { current_house_id: number | null }
+        | { current_house_id: number | null; is_archived: number }
         | undefined;
+      if (!row || row.is_archived) continue;
       const houseId = payload.houseId ?? row?.current_house_id ?? null;
       insert.run(
         personId,
@@ -156,11 +151,17 @@ export function markAttendance(payload: {
 }
 
 export function attendanceForPerson(personId: number): AttendanceRow[] {
-  return listAttendance({ q: "" }).filter((a) => a.person_id === personId);
+  return listAttendance({ personId });
+}
+
+export function deleteAttendance(id: number): void {
+  const r = getDb().prepare("DELETE FROM attendance WHERE id = ?").run(id);
+  if (!r.changes) throw new Error("Attendance record not found");
 }
 
 export function todayCount(): number {
-  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const row = getDb()
     .prepare(
       "SELECT COUNT(*) AS c FROM attendance WHERE attendance_date = ?",

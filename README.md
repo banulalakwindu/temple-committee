@@ -1,4 +1,4 @@
-# Temple Community
+# Temple Committee
 
 Fully offline desktop app for Sri Lankan Buddhist temple community records.
 
@@ -59,12 +59,12 @@ Replace those files (same names) and rebuild to update branding.
 npm run dist
 ```
 
-Copy the new `Setup.exe` from `release/` to a USB and run it on the temple PC. Application data is kept in AppData across upgrades. On launch the app runs migrations and can auto-backup.
+Copy `TempleCommittee-Setup-*.exe` from `release/` to a USB and run it on the temple PC. Installer uses branded green sidebars, creates Desktop + Start Menu shortcuts, and can launch after finish. Application data (database, backups, window size) is kept in AppData across upgrades — uninstall does **not** delete records. Only one instance runs at a time — opening the shortcut again focuses the existing window.
 
 ## Modes
 
 - **Public:** search / view / submit pending create-update requests (no login)
-- **Admin:** unlock with shared password — houses, people, attendance, documents, approvals, reports, backup
+- **Admin:** unlock with shared password — houses, people, attendance, documents, approvals, backup
 
 ## TODO
 

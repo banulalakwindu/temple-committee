@@ -1,7 +1,7 @@
 /**
  * Demo data seeder for local testing.
  * Usage: npm run seed
- * Force add again: FORCE_SEED=1 npm run seed
+ * Force reset + seed: npm run seed:force
  * Optional: TEMPLE_DB_PATH=C:\path\to\temple.sqlite npm run seed
  */
 import fs from "node:fs";
@@ -15,8 +15,7 @@ function resolveDbPath() {
     process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming");
   const candidates = [
     path.join(appData, "temple-community", "TempleCommunity", "data", "temple.sqlite"),
-    path.join(appData, "Temple Community", "TempleCommunity", "data", "temple.sqlite"),
-    path.join(appData, "TempleCommunity", "data", "temple.sqlite"),
+    path.join(appData, "Temple Committee", "TempleCommunity", "data", "temple.sqlite"),
   ];
   for (const p of candidates) {
     if (fs.existsSync(p)) return p;
@@ -49,7 +48,6 @@ function ensureSchema(db) {
       village_en TEXT NOT NULL DEFAULT '',
       telephone TEXT NOT NULL DEFAULT '',
       notes TEXT NOT NULL DEFAULT '',
-      is_active INTEGER NOT NULL DEFAULT 1,
       custom_field_1 TEXT NOT NULL DEFAULT '',
       custom_field_2 TEXT NOT NULL DEFAULT '',
       custom_field_3 TEXT NOT NULL DEFAULT '',
@@ -73,7 +71,6 @@ function ensureSchema(db) {
       address_en TEXT NOT NULL DEFAULT '',
       notes TEXT NOT NULL DEFAULT '',
       current_house_id INTEGER REFERENCES houses(id) ON DELETE SET NULL,
-      is_active INTEGER NOT NULL DEFAULT 1,
       custom_field_1 TEXT NOT NULL DEFAULT '',
       custom_field_2 TEXT NOT NULL DEFAULT '',
       custom_field_3 TEXT NOT NULL DEFAULT '',
@@ -82,20 +79,10 @@ function ensureSchema(db) {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
-    CREATE TABLE IF NOT EXISTS person_house_history (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      person_id INTEGER NOT NULL REFERENCES people(id) ON DELETE CASCADE,
-      from_house_id INTEGER REFERENCES houses(id) ON DELETE SET NULL,
-      to_house_id INTEGER NOT NULL REFERENCES houses(id) ON DELETE CASCADE,
-      moved_at TEXT NOT NULL,
-      reason TEXT NOT NULL DEFAULT '',
-      created_at TEXT NOT NULL
-    );
     CREATE TABLE IF NOT EXISTS attendance_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name_si TEXT NOT NULL DEFAULT '',
       name_en TEXT NOT NULL DEFAULT '',
-      is_active INTEGER NOT NULL DEFAULT 1,
       sort_order INTEGER NOT NULL DEFAULT 0
     );
     CREATE TABLE IF NOT EXISTS attendance (
@@ -112,7 +99,6 @@ function ensureSchema(db) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name_si TEXT NOT NULL DEFAULT '',
       name_en TEXT NOT NULL DEFAULT '',
-      is_active INTEGER NOT NULL DEFAULT 1,
       sort_order INTEGER NOT NULL DEFAULT 0
     );
     CREATE TABLE IF NOT EXISTS document_logs (
@@ -178,58 +164,81 @@ const families = [
 function main() {
   const dbPath = resolveDbPath();
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-  console.log("Seeding:", dbPath);
+
+  const force =
+    process.env.FORCE_SEED === "1" || process.argv.includes("--force");
+
+  if (force) {
+    for (const suffix of ["", "-wal", "-shm"]) {
+      const p = `${dbPath}${suffix}`;
+      if (fs.existsSync(p)) {
+        fs.unlinkSync(p);
+        console.log("Removed:", p);
+      }
+    }
+  }
+
+  console.log(force ? "Resetting and seeding:" : "Seeding:", dbPath);
 
   const db = new DatabaseSync(dbPath);
   db.exec("PRAGMA foreign_keys = ON;");
   ensureSchema(db);
 
-  const force =
-    process.env.FORCE_SEED === "1" || process.argv.includes("--force");
-  const houseCount = db.prepare("SELECT COUNT(*) AS c FROM houses").get().c;
+  const houseCount = Number(
+    db.prepare("SELECT COUNT(*) AS c FROM houses").get().c,
+  );
   if (houseCount > 0 && !force) {
     console.log(
-      `DB already has ${houseCount} houses. Use npm run seed:force to add more.`,
+      `DB already has ${houseCount} houses. Use npm run seed:force to reset and seed.`,
     );
     db.close();
     process.exit(0);
+  }
+
+  // Clear leftover domain rows if file existed without full wipe (safety)
+  if (force) {
+    db.exec(`
+      DELETE FROM document_logs;
+      DELETE FROM attendance;
+      DELETE FROM pending_requests;
+      DELETE FROM people;
+      DELETE FROM houses;
+      DELETE FROM attendance_events;
+      DELETE FROM document_types;
+    `);
   }
 
   const ts = nowIso();
   const insertHouse = db.prepare(`
     INSERT INTO houses (
       house_number, name_si, name_en, address_si, address_en,
-      village_si, village_en, telephone, notes, is_active,
+      village_si, village_en, telephone, notes,
       custom_field_1, custom_field_2, custom_field_3, custom_field_4, custom_field_5,
       created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', 1, '', '', '', '', '', ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', '', '', '', '', '', ?, ?)
   `);
   const insertPerson = db.prepare(`
     INSERT INTO people (
       full_name_si, full_name_en, gender, birthday, nic, phone,
       occupation_si, occupation_en, relationship_in_family,
-      address_si, address_en, notes, current_house_id, is_active,
+      address_si, address_en, notes, current_house_id,
       custom_field_1, custom_field_2, custom_field_3, custom_field_4, custom_field_5,
       created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '', '', '', ?, 1, '', '', '', '', '', ?, ?)
-  `);
-  const insertHist = db.prepare(`
-    INSERT INTO person_house_history (person_id, from_house_id, to_house_id, moved_at, reason, created_at)
-    VALUES (?, NULL, ?, ?, 'Seeded', ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '', '', '', ?, '', '', '', '', '', ?, ?)
   `);
 
-  if (db.prepare("SELECT COUNT(*) AS c FROM attendance_events").get().c === 0) {
+  {
     const ins = db.prepare(
-      "INSERT INTO attendance_events (name_si, name_en, is_active, sort_order) VALUES (?, ?, 1, ?)",
+      "INSERT INTO attendance_events (name_si, name_en, sort_order) VALUES (?, ?, ?)",
     );
     ins.run("Poya Day", "Poya Day", 1);
     ins.run("Vesak", "Vesak", 2);
     ins.run("Dhamma School", "Dhamma School", 3);
   }
 
-  if (db.prepare("SELECT COUNT(*) AS c FROM document_types").get().c === 0) {
+  {
     const ins = db.prepare(
-      "INSERT INTO document_types (name_si, name_en, is_active, sort_order) VALUES (?, ?, 1, ?)",
+      "INSERT INTO document_types (name_si, name_en, sort_order) VALUES (?, ?, ?)",
     );
     ins.run("Residence Letter", "Residence Letter", 1);
     ins.run("Membership Confirmation", "Membership Confirmation", 2);
@@ -246,7 +255,7 @@ function main() {
   families.forEach((members, idx) => {
     const houseId = houseIds[idx];
     for (const m of members) {
-      const r = insertPerson.run(
+      insertPerson.run(
         m.en,
         m.en,
         m.gender,
@@ -260,18 +269,18 @@ function main() {
         ts,
         ts,
       );
-      insertHist.run(Number(r.lastInsertRowid), houseId, ts, ts);
       people += 1;
     }
   });
 
   const eventId = db.prepare("SELECT id FROM attendance_events ORDER BY id LIMIT 1").get()?.id;
-  const firstPeople = db.prepare("SELECT id, current_house_id FROM people ORDER BY id DESC LIMIT 5").all();
+  const firstPeople = db.prepare("SELECT id, current_house_id FROM people ORDER BY id ASC LIMIT 5").all();
   const mark = db.prepare(`
     INSERT INTO attendance (person_id, house_id, attendance_date, event_id, event_other, notes, marked_at)
     VALUES (?, ?, ?, ?, NULL, 'Seed attendance', ?)
   `);
-  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   for (const p of firstPeople) {
     mark.run(p.id, p.current_house_id, today, eventId ?? null, ts);
   }

@@ -1,7 +1,7 @@
 import { getDb } from "../connection.js";
 import type { PendingRequest } from "../../types.js";
 import { createHouse, updateHouse } from "./houses.js";
-import { createPerson, updatePerson, movePerson } from "./people.js";
+import { createPerson, updatePerson } from "./people.js";
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -127,12 +127,28 @@ export function approvePending(id: number, note = ""): PendingRequest {
       case "update_person": {
         const personId = req.target_person_id;
         if (!personId) throw new Error("Missing person target");
-        const moveTo = payload.move_to_house_id as number | undefined;
-        const { move_to_house_id: _m, move_reason: moveReason, ...rest } =
-          payload;
-        updatePerson(personId, rest as Parameters<typeof updatePerson>[1]);
-        if (moveTo) {
-          movePerson(personId, moveTo, String(moveReason || "Public update"));
+        updatePerson(personId, payload as Parameters<typeof updatePerson>[1]);
+        break;
+      }
+      case "create_household": {
+        const housePayload = payload.house as
+          | Parameters<typeof createHouse>[0]
+          | undefined;
+        const peoplePayload = payload.people as
+          | Parameters<typeof createPerson>[0][]
+          | undefined;
+        if (!housePayload || typeof housePayload !== "object") {
+          throw new Error("Household request is missing house details");
+        }
+        if (!Array.isArray(peoplePayload) || peoplePayload.length === 0) {
+          throw new Error("Household request needs at least one person");
+        }
+        const house = createHouse(housePayload);
+        for (const person of peoplePayload) {
+          createPerson({
+            ...person,
+            current_house_id: house.id,
+          });
         }
         break;
       }

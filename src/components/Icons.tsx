@@ -66,6 +66,12 @@ export const Icons = {
       <path d="M16 2v4M8 2v4M3 10h18" />
     </Svg>
   ),
+  dana: (p?: IconProps) => (
+    <Svg {...p}>
+      <path d="M12 3c-2.5 3-5 5.2-5 8.2a5 5 0 0 0 10 0C17 8.2 14.5 6 12 3z" />
+      <path d="M8 18h8M9 21h6" />
+    </Svg>
+  ),
   file: (p?: IconProps) => (
     <Svg {...p}>
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -76,12 +82,6 @@ export const Icons = {
     <Svg {...p}>
       <path d="M22 12h-6l-2 3h-4l-2-3H2" />
       <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
-    </Svg>
-  ),
-  chart: (p?: IconProps) => (
-    <Svg {...p}>
-      <path d="M3 3v18h18" />
-      <path d="M7 14v4M12 10v8M17 7v11" />
     </Svg>
   ),
   settings: (p?: IconProps) => (
@@ -134,6 +134,51 @@ export const Icons = {
   x: (p?: IconProps) => (
     <Svg {...p}>
       <path d="M18 6 6 18M6 6l12 12" />
+    </Svg>
+  ),
+  trash: (p?: IconProps) => (
+    <Svg {...p}>
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+      <path d="M10 11v6M14 11v6" />
+    </Svg>
+  ),
+  archive: (p?: IconProps) => (
+    <Svg {...p}>
+      <path d="M21 8v13H3V8" />
+      <path d="M1 3h22v5H1z" />
+      <path d="M10 12h4" />
+    </Svg>
+  ),
+  chevronDown: (p?: IconProps) => (
+    <Svg {...p}>
+      <path d="m6 9 6 6 6-6" />
+    </Svg>
+  ),
+  info: (p?: IconProps) => (
+    <Svg {...p}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 16v-4M12 8h.01" />
+    </Svg>
+  ),
+  flag: (p?: IconProps) => (
+    <Svg {...p}>
+      <path d="M4 22V4" />
+      <path d="M4 4h12l-2 4 2 4H4" />
+    </Svg>
+  ),
+  checkSquare: (p?: IconProps) => (
+    <Svg {...p}>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="m7 12 3 3 7-7" />
+    </Svg>
+  ),
+  coin: (p?: IconProps) => (
+    <Svg {...p}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v10" />
+      <path d="M9.5 9.5c.5-1 1.5-1.5 2.5-1.5s2 .6 2.5 1.5c.4.8 0 1.7-1 2.2L11 13.5c-1 .5-1.4 1.4-1 2.2.5 1 1.5 1.5 2.5 1.5s2-.5 2.5-1.5" />
     </Svg>
   ),
 };

@@ -5,11 +5,10 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
-export function listDocTypes(activeOnly = false): NamedType[] {
-  const sql = activeOnly
-    ? "SELECT * FROM document_types WHERE is_active = 1 ORDER BY sort_order, id"
-    : "SELECT * FROM document_types ORDER BY sort_order, id";
-  return getDb().prepare(sql).all() as NamedType[];
+export function listDocTypes(): NamedType[] {
+  return getDb()
+    .prepare("SELECT * FROM document_types ORDER BY sort_order, id")
+    .all() as NamedType[];
 }
 
 export function upsertDocType(
@@ -18,29 +17,18 @@ export function upsertDocType(
   if (input.id) {
     getDb()
       .prepare(
-        `UPDATE document_types SET name_si=?, name_en=?, is_active=?, sort_order=? WHERE id=?`,
+        `UPDATE document_types SET name_si=?, name_en=?, sort_order=? WHERE id=?`,
       )
-      .run(
-        input.name_si,
-        input.name_en,
-        input.is_active ?? 1,
-        input.sort_order ?? 0,
-        input.id,
-      );
+      .run(input.name_si, input.name_en, input.sort_order ?? 0, input.id);
     return getDb()
       .prepare("SELECT * FROM document_types WHERE id = ?")
       .get(input.id) as NamedType;
   }
   const r = getDb()
     .prepare(
-      `INSERT INTO document_types (name_si, name_en, is_active, sort_order) VALUES (?, ?, ?, ?)`,
+      `INSERT INTO document_types (name_si, name_en, sort_order) VALUES (?, ?, ?)`,
     )
-    .run(
-      input.name_si,
-      input.name_en,
-      input.is_active ?? 1,
-      input.sort_order ?? 0,
-    );
+    .run(input.name_si, input.name_en, input.sort_order ?? 0);
   return getDb()
     .prepare("SELECT * FROM document_types WHERE id = ?")
     .get(Number(r.lastInsertRowid)) as NamedType;
@@ -52,6 +40,8 @@ export type DocumentFilters = {
   dateTo?: string;
   documentTypeId?: number | null;
   issuedBy?: string;
+  houseId?: number | null;
+  personId?: number | null;
 };
 
 export function listDocuments(filters: DocumentFilters = {}): DocumentLog[] {
@@ -80,6 +70,14 @@ export function listDocuments(filters: DocumentFilters = {}): DocumentLog[] {
     where.push("d.issued_by LIKE ?");
     params.push(`%${filters.issuedBy.trim()}%`);
   }
+  if (filters.houseId) {
+    where.push("d.house_id = ?");
+    params.push(filters.houseId);
+  }
+  if (filters.personId) {
+    where.push("d.person_id = ?");
+    params.push(filters.personId);
+  }
 
   return getDb()
     .prepare(
@@ -87,6 +85,7 @@ export function listDocuments(filters: DocumentFilters = {}): DocumentLog[] {
         p.full_name_si AS person_name_si,
         p.full_name_en AS person_name_en,
         h.name_si AS house_name_si,
+        h.name_en AS house_name_en,
         t.name_si AS type_name_si,
         t.name_en AS type_name_en
        FROM document_logs d
@@ -112,9 +111,12 @@ export function issueDocument(input: {
     throw new Error("Document type or Other text is required");
   }
   const person = getDb()
-    .prepare("SELECT current_house_id FROM people WHERE id = ?")
-    .get(input.personId) as { current_house_id: number | null } | undefined;
+    .prepare("SELECT current_house_id, is_archived FROM people WHERE id = ?")
+    .get(input.personId) as
+    | { current_house_id: number | null; is_archived: number }
+    | undefined;
   if (!person) throw new Error("Person not found");
+  if (person.is_archived) throw new Error("Cannot issue document for archived person");
 
   const r = getDb()
     .prepare(
@@ -134,4 +136,9 @@ export function issueDocument(input: {
       nowIso(),
     );
   return listDocuments({}).find((d) => d.id === Number(r.lastInsertRowid))!;
+}
+
+export function deleteDocument(id: number): void {
+  const r = getDb().prepare("DELETE FROM document_logs WHERE id = ?").run(id);
+  if (!r.changes) throw new Error("Document log not found");
 }

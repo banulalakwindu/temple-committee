@@ -17,8 +17,6 @@ export function setSetting(key: string, value: string): void {
 
 export function getPublicSettings(): Record<string, string> {
   const keys = [
-    "temple_name_si",
-    "temple_name_en",
     "app_locale",
     "auto_backup_enabled",
     "auto_backup_interval_days",

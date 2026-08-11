@@ -10,8 +10,7 @@ import logoMark from "@/assets/logo-mark.png";
 
 export function AdminShell() {
   const { t } = useI18n();
-  const { adminUnlocked, pendingCount, lock, settings, refreshPendingCount } =
-    useApp();
+  const { adminUnlocked, pendingCount, lock, refreshPendingCount } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -47,19 +46,25 @@ export function AdminShell() {
         <div className="side-brand">
           <img className="side-brand-logo" src={logoMark} alt="" />
           <div>
-            <strong>{settings.temple_name_si || t("appName")}</strong>
+            <strong>{t("appName")}</strong>
             <span>{t("admin")}</span>
           </div>
         </div>
-        {link("/admin", t("dashboard"), Icons.layout())}
-        {link("/admin/houses", t("houses"), Icons.home())}
-        {link("/admin/people", t("people"), Icons.users())}
-        {link("/admin/attendance", t("attendance"), Icons.calendar())}
-        {link("/admin/documents", t("documents"), Icons.file())}
-        {link("/admin/pending", t("pending"), Icons.inbox(), pendingCount)}
-        {link("/admin/reports", t("reports"), Icons.chart())}
-        {link("/admin/settings", t("settings"), Icons.settings())}
-        <NavLink to="/public" className="nav-link" style={{ marginTop: "auto" }}>
+        <nav className="admin-nav">
+          {link("/admin", t("dashboard"), Icons.layout())}
+          {link("/admin/houses", t("houses"), Icons.home())}
+          {link("/admin/people", t("people"), Icons.users())}
+          {link("/admin/attendance", t("attendance"), Icons.calendar())}
+          {link("/admin/dana", t("dana"), Icons.dana())}
+          {link("/admin/events", t("events"), Icons.flag())}
+          {link("/admin/tasks", t("tasks"), Icons.checkSquare())}
+          {link("/admin/documents", t("documents"), Icons.file())}
+          {link("/admin/payments", t("payments"), Icons.coin())}
+          {link("/admin/temple-info", t("templeInfo"), Icons.info())}
+          {link("/admin/pending", t("pending"), Icons.inbox(), pendingCount)}
+          {link("/admin/settings", t("settings"), Icons.settings())}
+        </nav>
+        <NavLink to="/public" className="nav-link admin-nav-footer">
           <span className="nav-link-left">
             {Icons.arrowLeft()}
             <span>{t("publicHome")}</span>
